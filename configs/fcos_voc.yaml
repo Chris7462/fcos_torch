@@ -1,0 +1,22 @@
+# FCOS Configuration for VOC2007 Detection
+
+model:
+  num_classes: 20
+  fpn_channels: 128
+  stem_channels: [128, 128]
+
+train:
+  batch_size: 16
+  learning_rate: 8.0e-3
+  weight_decay: 1.0e-4
+  max_iters: 9000
+  log_period: 100
+
+data:
+  dataset_dir: "./data"
+  image_size: 224
+  num_workers: 4
+
+inference:
+  score_thresh: 0.4
+  nms_thresh: 0.6
