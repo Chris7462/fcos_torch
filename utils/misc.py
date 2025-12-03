@@ -1,5 +1,8 @@
 import random
+from typing import Any, Dict
+
 import torch
+import yaml
 
 
 def reset_seed(number):
@@ -14,17 +17,17 @@ def reset_seed(number):
     return
 
 
-def tensor_to_image(tensor):
+def load_config(config_path: str) -> Dict[str, Any]:
     """
-    Convert a torch tensor into a numpy ndarray for visualization.
+    Load configuration from a YAML file.
 
-    Inputs:
-    - tensor: A torch tensor of shape (3, H, W) with
-      elements in the range [0, 1]
+    Args:
+        config_path: Path to the YAML configuration file.
 
     Returns:
-    - ndarr: A uint8 numpy array of shape (H, W, 3)
+        Dictionary containing configuration parameters.
     """
-    tensor = tensor.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0)
-    ndarr = tensor.to("cpu", torch.uint8).numpy()
-    return ndarr
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+    return config
+

@@ -9,8 +9,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from model import FCOS
 from datasets import VOC2007Dataset
-from engine import inference_with_detector
-from utils import load_config, get_default_config, merge_config
+from engine import evaluate_detector
+from utils import load_config
 
 
 def parse_args():
@@ -46,9 +46,7 @@ def main():
     args = parse_args()
 
     # Load config
-    default_config = get_default_config()
-    custom_config = load_config(args.config)
-    cfg = merge_config(default_config, custom_config)
+    cfg = load_config(args.config)
 
     # Set device
     if args.device is not None:
@@ -65,10 +63,9 @@ def main():
         root=cfg["data"]["dataset_dir"],
         split="test",
         image_size=cfg["data"]["image_size"],
-        max_boxes=cfg["data"].get("max_boxes", 40),
-        exclude_difficult=cfg["data"].get("exclude_difficult", True),
+        max_boxes=cfg["data"]["max_boxes"],
+        exclude_difficult=cfg["data"]["exclude_difficult"],
     )
-
     print(f"Test dataset size: {len(test_dataset)}")
 
     # Use batch_size = 1 during inference - during inference we do not center crop
@@ -78,7 +75,7 @@ def main():
         batch_size=1,
         shuffle=False,
         pin_memory=True,
-        num_workers=cfg["data"].get("num_workers", 4),
+        num_workers=cfg["num_workers"],
     )
 
     # Create model
@@ -94,8 +91,8 @@ def main():
     )
     print(f"Loaded weights from {args.weights}")
 
-    # Run inference
-    inference_with_detector(
+    # Run evaluation
+    evaluate_detector(
         detector,
         test_loader,
         test_dataset.idx_to_class,

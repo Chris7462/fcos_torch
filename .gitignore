@@ -24,5 +24,6 @@ data
 models
 plots
 outputs
+checkpoints
 __pycache__
 .vscode

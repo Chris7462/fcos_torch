@@ -1,13 +1,11 @@
-from .misc import reset_seed, tensor_to_image
+from .misc import reset_seed, load_config
 from .visualization import detection_visualizer
-from .config import load_config, get_default_config, merge_config
+from .metrics import compute_map
 
 
 __all__ = [
     "reset_seed",
-    "tensor_to_image",
     "detection_visualizer",
     "load_config",
-    "get_default_config",
-    "merge_config",
+    "compute_map",
 ]

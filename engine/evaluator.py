@@ -9,7 +9,7 @@ from torchvision import transforms
 from utils import detection_visualizer
 
 
-def inference_with_detector(
+def evaluate_detector(
     detector,
     test_loader,
     idx_to_class,
@@ -19,11 +19,23 @@ def inference_with_detector(
     dtype: torch.dtype = torch.float32,
     device: str = "cpu",
 ):
+    """
+    Run evaluation on a detector with a test data loader.
 
-    # ship model to GPU
+    Args:
+        detector: FCOS detector model
+        test_loader: DataLoader for test/val dataset
+        idx_to_class: Dictionary mapping class index to class name
+        score_thresh: Score threshold for filtering predictions
+        nms_thresh: NMS IoU threshold
+        output_dir: If provided, save results for mAP evaluation; otherwise visualize
+        dtype: Data type for inference
+        device: Device to run inference on
+    """
+    # Ship model to device
     detector.to(dtype=dtype, device=device)
-
     detector.eval()
+
     start_t = time.time()
 
     # Define an "inverse" transform for the image that un-normalizes by ImageNet
@@ -40,14 +52,14 @@ def inference_with_detector(
     )
 
     if output_dir is not None:
-        det_dir = "mAP/input/detection-results"
-        gt_dir = "mAP/input/ground-truth"
+        det_dir = os.path.join(output_dir, "detection-results")
+        gt_dir = os.path.join(output_dir, "ground-truth")
         if os.path.exists(det_dir):
             shutil.rmtree(det_dir)
-        os.mkdir(det_dir)
+        os.makedirs(det_dir)
         if os.path.exists(gt_dir):
             shutil.rmtree(gt_dir)
-        os.mkdir(gt_dir)
+        os.makedirs(gt_dir)
 
     for iter_num, test_batch in enumerate(test_loader):
         image_paths, images, gt_boxes = test_batch
@@ -87,7 +99,7 @@ def inference_with_detector(
             [pred_boxes, pred_classes.unsqueeze(1), pred_scores.unsqueeze(1)], dim=1
         )
 
-        # write results to file for evaluation (use mAP API https://github.com/Cartucho/mAP for now...)
+        # Write results to file for evaluation (use mAP API https://github.com/Cartucho/mAP for now...)
         if output_dir is not None:
             file_name = os.path.basename(image_path).replace(".jpg", ".txt")
             with open(os.path.join(det_dir, file_name), "w") as f_det, open(

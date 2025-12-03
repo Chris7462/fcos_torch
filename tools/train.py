@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from model import FCOS
 from datasets import VOC2007Dataset
 from engine import train_detector
-from utils import reset_seed, load_config, get_default_config, merge_config
+from utils import reset_seed, load_config
 
 
 def parse_args():
@@ -25,7 +25,7 @@ def parse_args():
     parser.add_argument(
         "--output",
         type=str,
-        default="fcos_detector.pt",
+        default="fcos_detector.pth",
         help="Path to save trained model weights",
     )
     parser.add_argument(
@@ -47,9 +47,7 @@ def main():
     args = parse_args()
 
     # Load config
-    default_config = get_default_config()
-    custom_config = load_config(args.config)
-    cfg = merge_config(default_config, custom_config)
+    cfg = load_config(args.config)
 
     # Set device
     if args.device is not None:
@@ -64,23 +62,40 @@ def main():
     # Set random seed
     reset_seed(args.seed)
 
-    # Create dataset
+    # Create training dataset
     train_dataset = VOC2007Dataset(
         root=cfg["data"]["dataset_dir"],
         split="trainval",
         image_size=cfg["data"]["image_size"],
-        max_boxes=cfg["data"].get("max_boxes", 40),
-        exclude_difficult=cfg["data"].get("exclude_difficult", True),
+        max_boxes=cfg["data"]["max_boxes"],
+        exclude_difficult=cfg["data"]["exclude_difficult"],
     )
-
     print(f"Training dataset size: {len(train_dataset)}")
 
-    # Create data loader
-    num_workers = cfg["data"].get("num_workers", multiprocessing.cpu_count())
+    # Create validation dataset (using test split)
+    val_dataset = VOC2007Dataset(
+        root=cfg["data"]["dataset_dir"],
+        split="test",
+        image_size=cfg["data"]["image_size"],
+        max_boxes=cfg["data"]["max_boxes"],
+        exclude_difficult=cfg["data"]["exclude_difficult"],
+    )
+    print(f"Validation dataset size: {len(val_dataset)}")
+
+    # Create data loaders
+    num_workers = cfg["num_workers"]
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=cfg["train"]["batch_size"],
         shuffle=True,
+        pin_memory=True,
+        num_workers=num_workers,
+    )
+
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=1,
+        shuffle=False,
         pin_memory=True,
         num_workers=num_workers,
     )
@@ -101,9 +116,15 @@ def main():
         max_iters=cfg["train"]["max_iters"],
         log_period=cfg["train"]["log_period"],
         device=device,
+        val_loader=val_loader,
+        val_period=cfg["validation"]["val_period"],
+        num_classes=cfg["model"]["num_classes"],
+        score_thresh=cfg["inference"]["score_thresh"],
+        nms_thresh=cfg["inference"]["nms_thresh"],
+        checkpoint_dir=cfg["output"]["checkpoint_dir"],
     )
 
-    # Save model
+    # Save final model
     torch.save(detector.state_dict(), args.output)
     print(f"Model saved to {args.output}")
 

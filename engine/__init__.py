@@ -1,9 +1,9 @@
 from .trainer import train_detector, infinite_loader
-from .inference import inference_with_detector
+from .evaluator import evaluate_detector
 
 
 __all__ = [
     "train_detector",
     "infinite_loader",
-    "inference_with_detector",
+    "evaluate_detector",
 ]
