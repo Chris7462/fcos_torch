@@ -9,7 +9,7 @@ import torch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from model import FCOS
-from datasets import VOC2007DetectionTiny
+from datasets import VOC2007Dataset
 from engine import train_detector
 from utils import reset_seed, load_config, get_default_config, merge_config
 
@@ -64,12 +64,13 @@ def main():
     # Set random seed
     reset_seed(args.seed)
 
-    # Create datasets
-    train_dataset = VOC2007DetectionTiny(
-        cfg["data"]["dataset_dir"],
-        split="train",
+    # Create dataset
+    train_dataset = VOC2007Dataset(
+        root=cfg["data"]["dataset_dir"],
+        split="trainval",
         image_size=cfg["data"]["image_size"],
-        download=False,
+        max_boxes=cfg["data"].get("max_boxes", 40),
+        exclude_difficult=cfg["data"].get("exclude_difficult", True),
     )
 
     print(f"Training dataset size: {len(train_dataset)}")
@@ -79,6 +80,7 @@ def main():
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=cfg["train"]["batch_size"],
+        shuffle=True,
         pin_memory=True,
         num_workers=num_workers,
     )

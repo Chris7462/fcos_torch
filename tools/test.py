@@ -8,7 +8,7 @@ import torch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from model import FCOS
-from datasets import VOC2007DetectionTiny
+from datasets import VOC2007Dataset
 from engine import inference_with_detector
 from utils import load_config, get_default_config, merge_config
 
@@ -60,20 +60,23 @@ def main():
         device = torch.device("cpu")
         print("Using CPU")
 
-    # Create validation dataset
-    val_dataset = VOC2007DetectionTiny(
-        cfg["data"]["dataset_dir"],
-        split="val",
+    # Create test dataset
+    test_dataset = VOC2007Dataset(
+        root=cfg["data"]["dataset_dir"],
+        split="test",
         image_size=cfg["data"]["image_size"],
+        max_boxes=cfg["data"].get("max_boxes", 40),
+        exclude_difficult=cfg["data"].get("exclude_difficult", True),
     )
 
-    print(f"Validation dataset size: {len(val_dataset)}")
+    print(f"Test dataset size: {len(test_dataset)}")
 
     # Use batch_size = 1 during inference - during inference we do not center crop
     # the image to detect all objects, hence they may be of different size.
-    val_loader = torch.utils.data.DataLoader(
-        val_dataset,
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
         batch_size=1,
+        shuffle=False,
         pin_memory=True,
         num_workers=cfg["data"].get("num_workers", 4),
     )
@@ -94,8 +97,8 @@ def main():
     # Run inference
     inference_with_detector(
         detector,
-        val_loader,
-        val_dataset.idx_to_class,
+        test_loader,
+        test_dataset.idx_to_class,
         score_thresh=cfg["inference"]["score_thresh"],
         nms_thresh=cfg["inference"]["nms_thresh"],
         output_dir=args.output_dir,

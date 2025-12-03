@@ -41,6 +41,8 @@ def get_default_config() -> Dict[str, Any]:
             "dataset_dir": "./data",
             "image_size": 224,
             "num_workers": 4,
+            "max_boxes": 40,
+            "exclude_difficult": True,
         },
         "inference": {
             "score_thresh": 0.4,

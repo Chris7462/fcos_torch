@@ -1,6 +1,6 @@
-from .voc import VOC2007DetectionTiny
+from .voc import VOC2007Dataset
 
 
 __all__ = [
-    "VOC2007DetectionTiny",
+    "VOC2007Dataset",
 ]

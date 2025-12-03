@@ -16,6 +16,8 @@ data:
   dataset_dir: "./data"
   image_size: 224
   num_workers: 4
+  max_boxes: 40
+  exclude_difficult: true
 
 inference:
   score_thresh: 0.4
