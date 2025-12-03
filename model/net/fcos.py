@@ -4,7 +4,7 @@ import torch
 from torch import nn
 from torch.utils.data._utils.collate import default_collate
 
-from model.backbone import RegNetBackbone
+from model.backbone import ResNetBackbone
 from model.neck import FPN
 from model.head import FCOSHead
 from model.loss import FCOSLoss
@@ -38,7 +38,7 @@ class FCOS(nn.Module):
         ######################################################################
         # Initialize backbone, neck, head, and loss
         ######################################################################
-        self.backbone = RegNetBackbone()
+        self.backbone = ResNetBackbone()
         self.neck = FPN(
             in_channels=self.backbone.out_channels,
             out_channels=fpn_channels,

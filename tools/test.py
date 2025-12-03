@@ -1,11 +1,5 @@
 import argparse
-import os
-import sys
-
 import torch
-
-# Add parent directory to path to allow imports from fcos package
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from model import FCOS
 from datasets import VOC2007Dataset

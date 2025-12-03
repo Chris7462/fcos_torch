@@ -5,11 +5,11 @@ seed: 0
 
 model:
   num_classes: 20
-  fpn_channels: 128
-  stem_channels: [128, 128]
+  fpn_channels: 256
+  stem_channels: [256, 256]
 
 train:
-  batch_size: 128
+  batch_size: 32
   learning_rate: 8.0e-3
   weight_decay: 1.0e-4
   max_iters: 9000

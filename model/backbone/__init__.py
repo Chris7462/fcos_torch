@@ -1,6 +1,6 @@
-from .regnet import RegNetBackbone
+from .resnet import ResNetBackbone
 
 
 __all__ = [
-    "RegNetBackbone",
+    "ResNetBackbone",
 ]
