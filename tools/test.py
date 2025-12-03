@@ -28,16 +28,9 @@ def parse_args():
         help="Path to trained model weights",
     )
     parser.add_argument(
-        "--output_dir",
-        type=str,
-        default=None,
-        help="Output directory for mAP evaluation. If not specified, visualizes results.",
-    )
-    parser.add_argument(
-        "--device",
-        type=str,
-        default=None,
-        help="Device to use (cuda or cpu). Auto-detected if not specified.",
+        "--visualize",
+        action="store_true",
+        help="Visualize detections instead of computing mAP.",
     )
     return parser.parse_args()
 
@@ -49,14 +42,8 @@ def main():
     cfg = load_config(args.config)
 
     # Set device
-    if args.device is not None:
-        device = torch.device(args.device)
-    elif torch.cuda.is_available():
-        device = torch.device("cuda")
-        print("Using CUDA")
-    else:
-        device = torch.device("cpu")
-        print("Using CPU")
+    device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+    print(f"Using {device} device")
 
     # Create test dataset
     test_dataset = VOC2007Dataset(
@@ -98,7 +85,7 @@ def main():
         test_dataset.idx_to_class,
         score_thresh=cfg["inference"]["score_thresh"],
         nms_thresh=cfg["inference"]["nms_thresh"],
-        output_dir=args.output_dir,
+        visualize=args.visualize,
         device=device,
         dtype=torch.float32,
     )

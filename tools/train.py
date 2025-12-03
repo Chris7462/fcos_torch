@@ -1,5 +1,4 @@
 import argparse
-import multiprocessing
 import os
 import sys
 
@@ -22,24 +21,6 @@ def parse_args():
         default="configs/fcos_voc.yaml",
         help="Path to config file",
     )
-    parser.add_argument(
-        "--output",
-        type=str,
-        default="fcos_detector.pth",
-        help="Path to save trained model weights",
-    )
-    parser.add_argument(
-        "--device",
-        type=str,
-        default=None,
-        help="Device to use (cuda or cpu). Auto-detected if not specified.",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=0,
-        help="Random seed",
-    )
     return parser.parse_args()
 
 
@@ -50,17 +31,11 @@ def main():
     cfg = load_config(args.config)
 
     # Set device
-    if args.device is not None:
-        device = torch.device(args.device)
-    elif torch.cuda.is_available():
-        device = torch.device("cuda")
-        print("Using CUDA")
-    else:
-        device = torch.device("cpu")
-        print("Using CPU")
+    device = torch.accelerator.current_accelerator().type if torch.accelerator.is_available() else "cpu"
+    print(f"Using {device} device")
 
     # Set random seed
-    reset_seed(args.seed)
+    reset_seed(cfg["seed"])
 
     # Create training dataset
     train_dataset = VOC2007Dataset(
@@ -123,10 +98,6 @@ def main():
         nms_thresh=cfg["inference"]["nms_thresh"],
         checkpoint_dir=cfg["output"]["checkpoint_dir"],
     )
-
-    # Save final model
-    torch.save(detector.state_dict(), args.output)
-    print(f"Model saved to {args.output}")
 
 
 if __name__ == "__main__":

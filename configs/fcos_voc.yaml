@@ -1,6 +1,7 @@
 # FCOS Configuration for VOC2007 Detection
 
 num_workers: 8
+seed: 0
 
 model:
   num_classes: 20

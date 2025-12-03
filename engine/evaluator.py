@@ -1,21 +1,23 @@
-import os
-import shutil
+"""
+Evaluator for FCOS detector - runs inference and handles mAP computation/visualization.
+"""
+
 import time
-from typing import Optional
+from typing import Dict
 
 import torch
 from torchvision import transforms
 
-from utils import detection_visualizer
+from utils import detection_visualizer, compute_map
 
 
 def evaluate_detector(
     detector,
     test_loader,
-    idx_to_class,
+    idx_to_class: Dict[int, str],
     score_thresh: float,
     nms_thresh: float,
-    output_dir: Optional[str] = None,
+    visualize: bool = False,
     dtype: torch.dtype = torch.float32,
     device: str = "cpu",
 ):
@@ -28,7 +30,7 @@ def evaluate_detector(
         idx_to_class: Dictionary mapping class index to class name
         score_thresh: Score threshold for filtering predictions
         nms_thresh: NMS IoU threshold
-        output_dir: If provided, save results for mAP evaluation; otherwise visualize
+        visualize: If True, visualize detections; otherwise compute mAP
         dtype: Data type for inference
         device: Device to run inference on
     """
@@ -51,15 +53,9 @@ def evaluate_detector(
         ]
     )
 
-    if output_dir is not None:
-        det_dir = os.path.join(output_dir, "detection-results")
-        gt_dir = os.path.join(output_dir, "ground-truth")
-        if os.path.exists(det_dir):
-            shutil.rmtree(det_dir)
-        os.makedirs(det_dir)
-        if os.path.exists(gt_dir):
-            shutil.rmtree(gt_dir)
-        os.makedirs(gt_dir)
+    # Collect predictions and ground truths for mAP computation
+    all_predictions = []
+    all_ground_truths = []
 
     for iter_num, test_batch in enumerate(test_loader):
         image_paths, images, gt_boxes = test_batch
@@ -74,49 +70,61 @@ def evaluate_detector(
                     test_nms_thresh=nms_thresh,
                 )
 
-        # Skip current iteration if no predictions were found.
-        if pred_boxes.shape[0] == 0:
-            continue
+        # Get GT boxes and remove padding
+        gt_boxes_single = gt_boxes[0]
+        valid_gt = gt_boxes_single[:, 4] != -1
+        gt_boxes_valid = gt_boxes_single[valid_gt].cpu()
 
-        # Remove padding (-1) and batch dimension from predicted / GT boxes
-        # and transfer to CPU. Indexing `[0]` here removes batch dimension:
-        gt_boxes = gt_boxes[0]
-        valid_gt = gt_boxes[:, 4] != -1
-        gt_boxes = gt_boxes[valid_gt].cpu()
+        # Get valid predictions
+        if pred_boxes.shape[0] > 0:
+            valid_pred = pred_classes != -1
+            pred_boxes_valid = pred_boxes[valid_pred].cpu()
+            pred_classes_valid = pred_classes[valid_pred].cpu()
+            pred_scores_valid = pred_scores[valid_pred].cpu()
+        else:
+            pred_boxes_valid = torch.zeros(0, 4)
+            pred_classes_valid = torch.zeros(0, dtype=torch.long)
+            pred_scores_valid = torch.zeros(0)
 
-        valid_pred = pred_classes != -1
-        pred_boxes = pred_boxes[valid_pred].cpu()
-        pred_classes = pred_classes[valid_pred].cpu()
-        pred_scores = pred_scores[valid_pred].cpu()
+        if visualize:
+            # Visualize detections
+            if pred_boxes_valid.shape[0] == 0:
+                continue
 
-        image_path = image_paths[0]
-        # Un-normalize image tensor for visualization.
-        image = inverse_norm(images[0]).cpu()
+            # Un-normalize image tensor for visualization
+            image = inverse_norm(images[0]).cpu()
 
-        # Combine predicted classes and scores into boxes for evaluation
-        # and visualization.
-        pred_boxes = torch.cat(
-            [pred_boxes, pred_classes.unsqueeze(1), pred_scores.unsqueeze(1)], dim=1
+            # Combine predicted classes and scores into boxes for visualization
+            pred_boxes_combined = torch.cat(
+                [pred_boxes_valid, pred_classes_valid.unsqueeze(1).float(), pred_scores_valid.unsqueeze(1)], dim=1
+            )
+
+            detection_visualizer(
+                image, idx_to_class, gt_boxes_valid, pred_boxes_combined
+            )
+        else:
+            # Collect for mAP computation
+            all_predictions.append((pred_boxes_valid, pred_classes_valid, pred_scores_valid))
+            all_ground_truths.append(gt_boxes_single.cpu())
+
+    # Compute and print mAP
+    if not visualize:
+        num_classes = len(idx_to_class)
+        mAP, ap_per_class = compute_map(
+            all_predictions,
+            all_ground_truths,
+            num_classes=num_classes,
+            iou_threshold=0.5,
         )
 
-        # Write results to file for evaluation (use mAP API https://github.com/Cartucho/mAP for now...)
-        if output_dir is not None:
-            file_name = os.path.basename(image_path).replace(".jpg", ".txt")
-            with open(os.path.join(det_dir, file_name), "w") as f_det, open(
-                os.path.join(gt_dir, file_name), "w"
-            ) as f_gt:
-                for b in gt_boxes:
-                    f_gt.write(
-                        f"{idx_to_class[b[4].item()]} {b[0]:.2f} {b[1]:.2f} {b[2]:.2f} {b[3]:.2f}\n"
-                    )
-                for b in pred_boxes:
-                    f_det.write(
-                        f"{idx_to_class[b[4].item()]} {b[5]:.6f} {b[0]:.2f} {b[1]:.2f} {b[2]:.2f} {b[3]:.2f}\n"
-                    )
-        else:
-            detection_visualizer(
-                image, idx_to_class, gt_boxes, pred_boxes
-            )
+        # Print per-class AP
+        for class_idx in range(num_classes):
+            class_name = idx_to_class[class_idx]
+            ap = ap_per_class[class_idx] * 100
+            print(f"{ap:.2f}% = {class_name} AP")
+
+        # Print mAP
+        print(f"mAP = {mAP * 100:.2f}%")
 
     end_t = time.time()
     print(f"Total inference time: {end_t-start_t:.1f}s")

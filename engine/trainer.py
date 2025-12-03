@@ -8,6 +8,7 @@ from typing import Optional
 import matplotlib.pyplot as plt
 import torch
 from torch import optim
+from torch.utils.data import DataLoader
 
 from utils import compute_map
 
@@ -86,7 +87,7 @@ def train_detector(
     max_iters: int = 5000,
     log_period: int = 20,
     device: str = "cpu",
-    val_loader: Optional = None,
+    val_loader: Optional[DataLoader] = None,
     val_period: int = 1000,
     num_classes: int = 20,
     score_thresh: float = 0.4,
