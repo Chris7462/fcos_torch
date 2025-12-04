@@ -67,9 +67,8 @@ def main():
     )
 
     # Load weights
-    detector.load_state_dict(
-        torch.load(args.weights, weights_only=True, map_location="cpu")
-    )
+    checkpoint = torch.load(args.weights, weights_only=False, map_location="cpu")
+    detector.load_state_dict(checkpoint['model_state_dict'])
     print(f"Loaded weights from {args.weights}")
 
     # Run evaluation

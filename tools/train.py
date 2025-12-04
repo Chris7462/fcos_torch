@@ -15,6 +15,12 @@ def parse_args():
         default="configs/fcos_voc.yaml",
         help="Path to config file",
     )
+    parser.add_argument(
+        "--resume",
+        type=str,
+        default=None,
+        help="Path to checkpoint to resume training from",
+    )
     return parser.parse_args()
 
 
@@ -91,6 +97,7 @@ def main():
         score_thresh=cfg["inference"]["score_thresh"],
         nms_thresh=cfg["inference"]["nms_thresh"],
         checkpoint_dir=cfg["output"]["checkpoint_dir"],
+        resume_checkpoint=args.resume,
     )
 
 

@@ -35,20 +35,39 @@ python -c "from torchvision.datasets import VOCDetection; VOCDetection('./data',
 ```
 
 ## Training
+
+Start training from scratch:
 ```bash
 python tools/train.py --config configs/fcos_voc.yaml
+```
+
+Resume training from a checkpoint:
+```bash
+python tools/train.py --config configs/fcos_voc.yaml --resume ./checkpoints/latest.pth
 ```
 
 Training uses `trainval` split (~5,011 images) and validates on `test` split (~4,952 images).
 
 Checkpoints are saved to `./checkpoints/`:
-- `latest.pth` - Most recent model
-- `best.pth` - Best model based on validation mAP
+- `latest.pth` - Most recent checkpoint (full training state)
+- `best.pth` - Best checkpoint based on validation mAP (full training state)
+- `loss_history.png` - Training loss plot
 
 **Arguments:**
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--config` | `configs/fcos_voc.yaml` | Path to config file |
+| `--resume` | `None` | Path to checkpoint to resume training from |
+
+**Checkpoint Contents:**
+
+Each checkpoint contains the full training state for seamless resumption:
+- Model weights
+- Optimizer state
+- Learning rate scheduler state
+- Current iteration
+- Best mAP achieved
+- Loss history
 
 ## Testing
 

@@ -95,6 +95,7 @@ def train_detector(
     score_thresh: float = 0.4,
     nms_thresh: float = 0.6,
     checkpoint_dir: Optional[str] = None,
+    resume_checkpoint: Optional[str] = None,
 ):
     """
     Train the detector with optional validation and checkpointing.
@@ -113,6 +114,7 @@ def train_detector(
         score_thresh: Score threshold for validation
         nms_thresh: NMS threshold for validation
         checkpoint_dir: Directory to save checkpoints
+        resume_checkpoint: Path to checkpoint to resume training from
     """
     detector.to(device=device)
 
@@ -133,14 +135,30 @@ def train_detector(
     if checkpoint_dir is not None:
         os.makedirs(checkpoint_dir, exist_ok=True)
 
-    # Keep track of training loss for plotting.
-    loss_history = []
+    # Initialize training state
+    start_iter = 0
     best_map = 0.0
+    loss_history = []
+
+    # Load checkpoint if resuming
+    if resume_checkpoint is not None:
+        print(f"Resuming from checkpoint: {resume_checkpoint}")
+        checkpoint = torch.load(resume_checkpoint, weights_only=False, map_location=device)
+
+        detector.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        lr_scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        start_iter = checkpoint['iteration']
+        best_map = checkpoint['best_map']
+        loss_history = checkpoint['loss_history']
+        detector.loss._normalizer = checkpoint['normalizer']
+
+        print(f"Resumed from iteration {start_iter}, best mAP: {best_map:.4f}")
 
     train_loader = infinite_loader(train_loader)
     detector.train()
 
-    for _iter in range(max_iters):
+    for _iter in range(start_iter, max_iters):
         # Ignore first arg (image path) during training.
         _, images, gt_boxes = next(train_loader)
 
@@ -181,15 +199,26 @@ def train_detector(
 
             # Save checkpoints
             if checkpoint_dir is not None:
+                checkpoint = {
+                    'iteration': _iter + 1,
+                    'model_state_dict': detector.state_dict(),
+                    'optimizer_state_dict': optimizer.state_dict(),
+                    'scheduler_state_dict': lr_scheduler.state_dict(),
+                    'best_map': best_map,
+                    'loss_history': loss_history,
+                    'normalizer': detector.loss._normalizer,
+                }
+
                 # Save latest
                 latest_path = os.path.join(checkpoint_dir, "latest.pth")
-                torch.save(detector.state_dict(), latest_path)
+                torch.save(checkpoint, latest_path)
 
                 # Save best
                 if mAP > best_map:
                     best_map = mAP
+                    checkpoint['best_map'] = best_map
                     best_path = os.path.join(checkpoint_dir, "best.pth")
-                    torch.save(detector.state_dict(), best_path)
+                    torch.save(checkpoint, best_path)
                     print(f"[Iter {_iter + 1}][New best mAP: {best_map:.4f}]")
 
     # Plot training loss and save to file.
@@ -198,7 +227,7 @@ def train_detector(
     plt.xlabel(f"Iteration (x {log_period})")
     plt.ylabel("Loss")
     plt.plot(loss_history)
-    
+
     # Save plot to file instead of showing
     plot_path = os.path.join(checkpoint_dir, "loss_history.png") if checkpoint_dir else "loss_history.png"
     plt.savefig(plot_path)
