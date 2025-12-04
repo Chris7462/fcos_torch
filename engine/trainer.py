@@ -5,6 +5,8 @@ Trainer for FCOS detector with validation and checkpointing.
 import os
 from typing import Optional
 
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend before importing pyplot
 import matplotlib.pyplot as plt
 import torch
 from torch import optim
@@ -190,9 +192,15 @@ def train_detector(
                     torch.save(detector.state_dict(), best_path)
                     print(f"[Iter {_iter + 1}][New best mAP: {best_map:.4f}]")
 
-    # Plot training loss.
+    # Plot training loss and save to file.
+    plt.figure()
     plt.title("Training loss history")
     plt.xlabel(f"Iteration (x {log_period})")
     plt.ylabel("Loss")
     plt.plot(loss_history)
-    plt.show()
+    
+    # Save plot to file instead of showing
+    plot_path = os.path.join(checkpoint_dir, "loss_history.png") if checkpoint_dir else "loss_history.png"
+    plt.savefig(plot_path)
+    plt.close()
+    print(f"Training loss plot saved to {plot_path}")
